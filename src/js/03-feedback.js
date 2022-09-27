@@ -1,49 +1,41 @@
-import throttle from 'lodash.throttle';
+import storageAPI from './storage';
+var throttle = require('lodash.throttle');
 
-const refs = {
-  form: document.querySelector('.feedback-form'),
-  textarea: document.querySelector('.feedback-form textarea'),
-  email: document.querySelector('.feedback-form input'),
-};
+let form = document.querySelector('.feedback-form');
 
-const STORAGE_KEY = 'feedback-form-state';
-const formData = {};
+initPage()
+form.addEventListener('input', throttle(handleInput, 500));
+form.addEventListener('submit', handleSubmit);
 
-populateFormData();
+function handleInput (e) {
+    const {name, value} = e.target;
+    
+    let savedData = storageAPI.load('feedback-form-state');
+    savedData = savedData ? savedData : {};
+    savedData[name] = value;
+    storageAPI.save('feedback-form-state', savedData);
 
-refs.form.addEventListener('submit', onFormSubmit);
-refs.form.addEventListener('input', throttle(onFormInput, 500));
-
-function onFormInput(e) { 
-  formData[e.target.name] = e.target.value;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    console.log(handleInput);
 }
 
-
-function onFormSubmit(evt) {
-  evt.preventDefault();
-
-  console.log(JSON.parse(localStorage.getItem(STORAGE_KEY)));
-  evt.currentTarget.reset();  
-  reset(formData);
-  localStorage.removeItem(STORAGE_KEY);
-  
+function initPage () {
+   const savedData = storageAPI.load('feedback-form-state');
+    if (!savedData) {
+        return;
+    }
+    Object.entries(savedData).forEach(([name, value]) => {
+        form.elements[name].value = value;
+    })
 }
 
-function populateFormData() {
-  const savedData = localStorage.getItem(STORAGE_KEY);
+function handleSubmit (e) {
+    e.preventDefault();
+    const {
+        elements: {email, message}
+    } = e.currentTarget;
 
-  const parsedData = JSON.parse(savedData);
+    console.log({email: email.value, message: message.value});
 
-  if (savedData) {
-    refs.textarea.value = parsedData.message || '';
-    refs.email.value = parsedData.email || '';
-  }
-}
-
-function reset(obj) {
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'object' && value !== null) reset(value);
-    else obj[key] = '';
-  }
+    e.currentTarget.reset();
+    storageAPI.remove('feedback-form-state');
 }
